@@ -90,14 +90,13 @@ jobs:
           echo "Push failed after retries."
           exit 1
 
-     
-
       - name: Send Telegram Notification
         if: env.changed == 'true'
         run: |
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
           -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
           -d "text=Website Monitor Alert: Zerobounce.net Changes Detected. Changes have been committed and pushed to the repository."
+
 
 
 
