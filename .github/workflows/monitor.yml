@@ -15,9 +15,9 @@ permissions:
 jobs:
   monitor:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -36,12 +36,12 @@ jobs:
           curl -L -s https://zerobounce.net/js/app.js > .tmp_fetch/js/app.js || true
           curl -L -s https://zerobounce.net/js/vendor.js > .tmp_fetch/js/vendor.js || true
           curl -L -s https://zerobounce.net/js/new-feature.js > .tmp_fetch/js/new-feature.js || true
-
-          # copy into repo working tree for diff/commit steps
+          
+          # Copy into repo working tree for diff/commit steps
           cp -r .tmp_fetch/pages/* pages/ 2>/dev/null || true
           cp -r .tmp_fetch/js/* js/ 2>/dev/null || true
 
-      - name: Check changes
+      - name: Check for changes
         id: changes
         run: |
           git add pages js
@@ -51,13 +51,13 @@ jobs:
             echo "changed=true" >> $GITHUB_ENV
           fi
 
-      - name: Commit + push (retry-safe, avoids conflicts)
+      - name: Commit and push changes (retry-safe, avoids conflicts)
         if: env.changed == 'true'
         run: |
           set -euo pipefail
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-
+          
           for attempt in 1 2 3 4 5; do
             echo "Attempt $attempt: syncing with origin/main..."
             git fetch origin main
@@ -69,15 +69,12 @@ jobs:
             cp -r .tmp_fetch/js/* js/ 2>/dev/null || true
 
             git add pages js
-
-            # If someone else already pushed the same content, we're done.
             if git diff --cached --quiet; then
               echo "No changes to commit after syncing; exiting."
               exit 0
             fi
 
             git commit -m "Website change detected: zerobounce.net ($(date))" || true
-
             echo "Attempt $attempt: pushing..."
             if git push origin HEAD:main; then
               echo "Push succeeded."
@@ -90,3 +87,14 @@ jobs:
 
           echo "Push failed after retries."
           exit 1
+
+      - name: Send Slack notification
+        if: env.changed == 'true'
+        uses: 8398a7/action-slack@v3
+        with:
+          slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          msg: |
+            *Website Monitor Alert: Zerobounce.net Changes Detected*
+            Changes have been detected on the Zerobounce.net website. Please review the modifications.
+            The update was committed and pushed to the repository.
+
