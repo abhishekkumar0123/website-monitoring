@@ -25,26 +25,26 @@ jobs:
 
       - name: Setup folders
         run: |
-          mkdir -p pages js
+          mkdir -p pages assets scripts
+          rm -rf js
 
-      - name: Fetch Zerobounce data
+      - name: Fetch Zerobounce data (all pages + JS assets)
         run: |
           set -euo pipefail
           rm -rf .tmp_fetch
-          mkdir -p .tmp_fetch/pages .tmp_fetch/js
-          curl -L -s https://zerobounce.net > .tmp_fetch/pages/home.html || true
-          curl -L -s https://zerobounce.net/js/app.js > .tmp_fetch/js/app.js || true
-          curl -L -s https://zerobounce.net/js/vendor.js > .tmp_fetch/js/vendor.js || true
-          curl -L -s https://zerobounce.net/js/new-feature.js > .tmp_fetch/js/new-feature.js || true
+          node scripts/monitor.mjs
           
           # Copy into repo working tree for diff/commit steps
+          rm -rf pages assets manifest.json
+          mkdir -p pages assets
           cp -r .tmp_fetch/pages/* pages/ 2>/dev/null || true
-          cp -r .tmp_fetch/js/* js/ 2>/dev/null || true
+          cp -r .tmp_fetch/assets/* assets/ 2>/dev/null || true
+          cp .tmp_fetch/manifest.json manifest.json 2>/dev/null || true
 
       - name: Check for changes
         id: changes
         run: |
-          git add pages js
+          git add pages assets manifest.json
           if git diff --cached --quiet; then
             echo "changed=false" >> $GITHUB_ENV
           else
@@ -64,11 +64,13 @@ jobs:
             git reset --hard origin/main
 
             # Re-apply latest fetched artifacts (kept outside git history by reset)
-            mkdir -p pages js
+            rm -rf pages assets manifest.json
+            mkdir -p pages assets
             cp -r .tmp_fetch/pages/* pages/ 2>/dev/null || true
-            cp -r .tmp_fetch/js/* js/ 2>/dev/null || true
+            cp -r .tmp_fetch/assets/* assets/ 2>/dev/null || true
+            cp .tmp_fetch/manifest.json manifest.json 2>/dev/null || true
 
-            git add pages js
+            git add pages assets manifest.json
             if git diff --cached --quiet; then
               echo "No changes to commit after syncing; exiting."
               exit 0
